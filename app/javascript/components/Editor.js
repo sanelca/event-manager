@@ -7,6 +7,7 @@ import PropsRoute from './PropsRoute';
 import Event from './Event';
 import { Switch } from 'react-router-dom';
 import EventForm from './EventForm';
+import { handleAjaxError } from '../helpers/helpers';
 
 class Editor extends React.Component {
   constructor(props) {
@@ -18,22 +19,21 @@ class Editor extends React.Component {
 
     this.addEvent = this.addEvent.bind(this);
     this.deleteEvent = this.deleteEvent.bind(this);
+    this.updateEvent = this.updateEvent.bind(this);
   }
 
   componentDidMount() {
     axios
       .get('/api/events.json')
       .then(response => this.setState({ events: response.data }))
-      .catch((error) => {
-        console.log(error);
-      });
+      .catch(handleAjaxError);
   }
 
   addEvent(newEvent) {
     axios
       .post('/api/events.json', newEvent)
       .then((response) => {
-        alert('Event Added!');
+        success('Event Added!');
         const savedEvent = response.data;
         this.setState(prevState => ({
           events: [...prevState.events, savedEvent],
@@ -41,9 +41,22 @@ class Editor extends React.Component {
         const { history } = this.props;
         history.push(`/events/${savedEvent.id}`);
       })
-      .catch((error) => {
-        console.log(error);
-      });
+      .catch(handleAjaxError);
+  }
+
+  updateEvent(updatedEvent) {
+    axios
+      .put(`/api/events/${updatedEvent.id}.json`, updatedEvent)
+      .then(() => {
+        success('Event updated');
+        const { events } = this.state;
+        const idx = events.findIndex(event => event.id === updatedEvent.id);
+        events[idx] = updatedEvent;
+        const { history } = this.props;
+        history.push(`/events/${updatedEvent.id}`);
+        this.setState({ events });
+      })
+      .catch(handleAjaxError);
   }
 
   deleteEvent(eventId) {
@@ -53,7 +66,7 @@ class Editor extends React.Component {
         .delete(`/api/events/${eventId}.json`)
         .then((response) => {
           if (response.status === 204) {
-            alert('Event deleted');
+            success('Event deleted');
             const { history } = this.props;
             history.push('/events');
 
@@ -61,9 +74,7 @@ class Editor extends React.Component {
             this.setState({ events: events.filter(event => event.id !== eventId) });
           }
         })
-        .catch((error) => {
-          console.log(error);
-        });
+        .catch(handleAjaxError);
     }
   }
 
@@ -83,12 +94,18 @@ class Editor extends React.Component {
           <Switch>
             <PropsRoute path="/events/new" component={EventForm} onSubmit={this.addEvent} />
             <PropsRoute
+              exact
+              path="/events/:id/edit"
+              component={EventForm}
+              event={event}
+              onSubmit={this.updateEvent}
+            />
+            <PropsRoute
               path="/events/:id"
               component={Event}
               event={event}
               onDelete={this.deleteEvent}
-            />  
-
+            />
           </Switch>
         </div>
       </div>
